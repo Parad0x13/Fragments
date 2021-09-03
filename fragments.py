@@ -5,12 +5,17 @@ import threading
 
 class Fragment_Item:
     def __init__(self, name = "Default Item"):
+        self.name = name
+
+    def tick(self):
         pass
 
 class Fragment_Skill:
     def __init__(self, name = "Default Skill", level = 1):
         self.name = name
         self.exp = 0
+
+        self.output = []
 
     # Decided to use OSRS' leveling system
     # https://oldschool.runescape.wiki/w/Experience
@@ -28,10 +33,23 @@ class Fragment_Skill:
         return retVal
 
     def tick(self):
-        self.exp += 1
+        raise ValueError("Ensure skill tick() is overwritten")
 
     def render(self, prefix = ""):
         print(f"{prefix}Skill: Lvl {self.level()} {self.name} [{self.exp}/{Fragment_Skill.expForLevel(self.level() + 1)}]")
+
+class Fragment_Skill_Foraging(Fragment_Skill):
+    def __init__(self):
+        super().__init__()
+
+        self.name = "Foraging"
+
+    def tick(self):
+        chance = 50
+        val = random.randint(1, chance)
+        if val == chance:
+            item = Fragment_Item()
+            self.output.append(item)
 
 class Fragment_Unit:
     def __init__(self, name = "Default Unit", ID = 0):
@@ -48,14 +66,9 @@ class Fragment_Unit:
         # Skills
         self.skills = []
         self.activeSkill = None
-        self.addSkill("Foraging")
-        self.setActiveSkill("Foraging")
 
-    def addSkill(self, name):
-        # Here we do minimum skill level stuff incase we don't want default values
-        level = 1
-        skill = Fragment_Skill(name = name, level = level)
-        self.skills.append(skill)
+        self.skills.append(Fragment_Skill_Foraging())
+        self.setActiveSkill("Foraging")
 
     def setActiveSkill(self, name):
         if name == "None" or name == "Inactive":
@@ -72,6 +85,9 @@ class Fragment_Unit:
     def tick(self):
         if self.activeSkill != None:
             self.activeSkill.tick()
+
+            for item in self.activeSkill.output:
+                print(f"{self.name} found {item.name} while {self.activeSkill.name}")
 
     def render(self):
         activity = "Inactive"
@@ -136,6 +152,15 @@ class Fragments:
     def tick(self):
         for unit in self.units:
             unit.tick()
+
+            items = []
+            # If any of our units have produced anything we take care of that now
+            for skill in unit.skills:
+                items = skill.output
+                skill.output = []
+
+            for item in items:
+                self.warehouse.append(item)
 
     def gameLoop(self):
         while True:
